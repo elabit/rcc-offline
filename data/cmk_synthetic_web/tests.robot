@@ -13,7 +13,7 @@ ${SEARCH_QUERY}   "Checkmk" "Synthetic Monitoring"
 *** Test Cases ***
 Perform a Google Search
     [Documentation]    Opens Google and performs a search for a specific query.
-    New Browser  browser=firefox  headless=False
+    New Browser  browser=chromium  headless=True
     New Context  locale=en-US
     New Page  ${SEARCH_ENGINE} 
     Click  text="Accept all"
