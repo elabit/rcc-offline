@@ -2,7 +2,7 @@ FROM --platform=amd64 ubuntu
 
 ENV LANG=C.UTF-8 LANGUAGE=C.UTF-8 LC_ALL=C.UTF-8
 
-RUN apt-get update && apt-get install -y wget curl vim iputils-ping
+RUN apt-get update && apt-get install -y wget curl iputils-ping
 # OS dependencies for playwright
 RUN apt-get install -y libxcb-shm0\
     libx11-xcb1\
