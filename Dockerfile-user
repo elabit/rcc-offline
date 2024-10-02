@@ -1,0 +1,17 @@
+FROM rcc-offline-server:latest
+
+
+# Create a non-root user and group
+RUN groupadd -g 1001 mygroup && \
+    useradd -m -u 1001 -g mygroup myuser
+
+COPY data/.tmux.conf /home/myuser/.tmux.conf
+RUN chmod 644 /home/myuser/.tmux.conf
+
+# Switch to the new user
+USER myuser
+
+# Set the working directory
+WORKDIR /data
+
+CMD ["tail", "-f", "/dev/null"]

@@ -2,7 +2,7 @@ FROM --platform=amd64 ubuntu
 
 ENV LANG=C.UTF-8 LANGUAGE=C.UTF-8 LC_ALL=C.UTF-8
 
-RUN apt-get update && apt-get install -y wget curl iputils-ping
+RUN apt-get update && apt-get install -y wget curl iputils-ping vim tree htop
 # OS dependencies for playwright
 RUN apt-get install -y libxcb-shm0\
     libx11-xcb1\
@@ -34,8 +34,14 @@ RUN apt-get install -y libxcb-shm0\
     libdrm2\
     libgbm1
 
+
 RUN wget https://downloads.robocorp.com/rcc/releases/v13.7.1/linux64/rcc && wget https://downloads.robocorp.com/rcc/releases/v13.7.1/linux64/rccremote
 RUN chmod +x rcc rccremote && mv rcc rccremote /usr/bin
 
+RUN apt install -y tmuxp
+
+COPY data/.tmux.conf /root/.tmux.conf
+
+WORKDIR /data
 
 CMD ["tail", "-f", "/dev/null"]

@@ -1,0 +1,18 @@
+session_name: '0'
+windows:
+- focus: 'true'
+  layout: 46f2,135x64,0,0[135x8,0,0,0,135x7,0,9,5,135x15,0,17,3,135x31,0,33{67x31,0,33,1,67x31,68,33,4}]
+  options: {}
+  panes:
+  - focus: 'true'
+    shell_command:
+    - cd /data
+  - shell_command:
+    - watch -n 1 -d rcc ht catalogs
+  - shell_command:
+    - watch -n 1 -d rcc ht ls
+  - shell_command:
+    - watch -n 1 -d tree -d -L 4 ~/.robocorp
+  - shell_command:
+    - watch -n 1 -d tree -d -L 4 /opt/robocorp
+  window_name: bash

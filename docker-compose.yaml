@@ -1,17 +1,29 @@
 services:
-  rcc1:
+  server:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: server
     volumes:
       - ./data:/data
     networks:
       - app-network
 
-  rcc2:
+  client:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: client
+    volumes:
+      - ./data:/data
+    networks:
+      - app-network
+
+  clientuser:
+    build:
+      context: .
+      dockerfile: Dockerfile-user
+    container_name: clientuser
     volumes:
       - ./data:/data
     networks:

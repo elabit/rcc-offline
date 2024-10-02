@@ -1,0 +1,11 @@
+==============================================================================
+Tests :: This is a minimal test suite to demonstrate a web test case using ...
+==============================================================================
+Perform a Google Search :: Opens Google and performs a search for ... | PASS |
+------------------------------------------------------------------------------
+Tests :: This is a minimal test suite to demonstrate a web test ca... | PASS |
+1 test, 1 passed, 0 failed
+==============================================================================
+Output:  /data/cmk_synthetic_web/output.xml
+Log:     /data/cmk_synthetic_web/log.html
+Report:  /data/cmk_synthetic_web/report.html

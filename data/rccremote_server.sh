@@ -15,4 +15,4 @@ time rcc ht vars >/dev/null 2>&1
 rcc ht ls
 
 echo "Starting rccremote..."
-rccremote -hostname rcc1 -debug -trace
+rccremote -hostname 0.0.0.0 -debug -trace
