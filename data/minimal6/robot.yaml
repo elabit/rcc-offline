@@ -6,6 +6,7 @@ tasks:
   # (Robotmk does not use them at all, but executes custom Robot Framework commands inside of "rcc task shell")
   Run all tasks:
     shell: python -m robot --report NONE --outputdir output --logtitle "Task log" tests.robot
+    
 
 # Freeze files guarantee 100% identical environments by installing exactly the same versions of all 
 # dependencies. They are generated in /output whenever rcc is run from the commandline. 

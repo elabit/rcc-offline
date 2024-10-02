@@ -254,12 +254,44 @@ Ignoring this recommendation
 
 Even if the scheduler (running under root) can use a holotree in a user home - this could pose a similar danger as with shared holotrees: in the home dir, an unprivileged user could place malicious code in the holotree that the scheduler executes with root privileges.
 
-(However, the `.roocorp` directory created by rcc is owned by root and only he has write access.)
+If the `.robocorp` directory of the holotree does not exist, it gets created by rcc. It's then owned by root and only he has write access:
 
 ```
 drwxr-x--- 3 root root 4096 Oct  2 08:44 .robocorp
 ```
+This could be considered as "safe". BUT, however: 
+A user could create `/home/myuser/.roborp/ht/.../.../.../.../whatever` beforehand. RCC won't then re-create these directories with proper permissions, but use the existing ones. 
+The user would then be able to place malicious code there afterwards.
 
-### A possible solution?  
+(There is NO risk, however, for plans which neither use rccremote nor ZIP imports)
 
-Before execution, the scheduler checks with `rcc holotree catalogs`, whether the Holotree path of the environment to be used is in "his" default ht folder (/opt/robocorp/ or the Appdata directory of the system service under Windows) - and denies execution if the path is e.g. `/home/badass/robocorp/ht`
+### Current state of implementation
+
+The scheduler creates environments (=Holotrees) by executing `rcc task run`. In case of rccremote, the execution triggers the rcc hololib import as well as the environment creation before the actual command execution. 
+
+Even when the tasks in the robot.yaml are not relevant to Robotmk, we do not have control what users write here. The fact alone that an execution *can* happen is enough to count this as a security risk. 
+
+### Requirements
+
+The requirement for a secure operation with imported hololibs is: The scheduler must not create environments where the "Holotree path" of the environment can be written by someone else but root (be it before or after the holotree has been created).
+
+### Possible workaround
+
+A workaround would be to split up the creation of environments into an "import" and "create" phase: 
+
+- Step 1: Before the environment creation phase, the Scheduler has to determine his default Holotree path (`/opt/robocorp/ht`). (This path is where noone else but root can write into).
+  - TBD: use `rcc config diag --json` - which key is the right one? 
+- Step 2 = **I. IMPORT**: import all Hololibs; for each Suite do:
+  - if rccremote: run `rcc ht pull -r robot.yaml`
+  - if ZIP: run `rcc ht import zipfile.zip`
+- Step 3: run ` rcc ht catalogs --json` to get all Holotree paths
+- Step 4: Check whether the Holotree paths of all Hololibs match the default Holotree path (determined in Step 1).
+  - => we agreed that if there is at least one non-matching path, the scheduler should skip ALL RCC suites and produde a proper error message.
+- Step 5 = **II. CREATE**: Now we can assume that the holotrees will be created in a "safe" place where only root has write access to; for each Suite do:
+  - `rcc task run` (alternatively: `rcc ht vars`, does not need a command, but creates the env)
+
+### To be discussed
+
+- Would the workaround guarantee a safe operation? 
+- If not - is there a strategy to communicate this risk to the user so that we can offer the feature with a good feeling?
+
