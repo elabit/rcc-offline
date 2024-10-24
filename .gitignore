@@ -2,3 +2,4 @@
 *.xml
 playwright-log.txt
 *.zip
+certs

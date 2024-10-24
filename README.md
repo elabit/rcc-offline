@@ -157,141 +157,53 @@ Advantages:
 - Clean separation of network areas
 - Can be automated
 
-
-
 ---
 
-# Hololib import scenarios
+# Securing rccremote with nginx
 
-
-Three docker containers: 
-- clientuser (user)
-- client (root)
-- server (root, with shared holotree enabled)
-
-
-## Building the environments
-
-`data/` contains 3 folders `minimal5/6/7` with each RF 5/6/7 as dependency in conda.yaml.
-
-On each container, I created the environment with `rcc task run`:
-
-- clientuser: RF5 => Holotree path: `/home/myuser/.robocorp/holotree`
-- client: RF6 => Holotree path: `/root/.robocorp/holotree`
-- server: RF7 => Holotree path: `/opt/robocorp/ht`
-
-## Exporting the environments
-
-On each container, I exported the catalog with `rcc ht export -r robot.yaml -z ZIPFILE`:
-- clientuser: `user_dot_robocorp.zip`
-- client: `root_dot_robocorp.zip`
-- server: `opt_robocorp.zip`
-
-## Importing the ZIPs on the server
-
-On the server, all three ZIP files can be imported:
+Create a custom certificate and save the certificate + key in the certs directory: 
 
 ```
-rcc ht import root_dot_robocorp.zip 
-rcc ht import user_dot_robocorp.zip 
-rcc ht import opt_robocorp.zip
+mkdir certs
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout certs/server.key -out certs/server.crt
 ```
 
-The Holotree column shows the path: 
+Start the compose setup. 
 
-```
-rcc ht catalogs
-Blueprint         Platform     Dirs    Files    Size     identity.yaml (gzipped blob inside hololib)                                Holotree path                    Age (days)  Idle (days)
----------         --------     ------  -------  -------  -------------------------------------------                                -------------                    ----------  -----------
-2409ce1066f4880d  linux_amd64     694    12221     356M  de/c8/c8/dec8c8458f0ce9c68fe0dc021dd5e948a77b94e747b2bc718bace7bdb6d4426f  /root/.robocorp/holotree                  0            0
-35332e65a214c09f  linux_amd64     694    12221     356M  3c/d9/af/3cd9af373a350220e3516310cd08f1519a9952bd29ee906b02d551fad6b75adc  /home/myuser/.robocorp/holotree           0            0
-a466d176c7dc6696  linux_amd64     694    12239     357M  f4/71/36/f47136a7931ef758ae45c1cb29f04fb0e27b3ba160bbaa979d83776b507a074f  /opt/robocorp/ht                          0            0
+## Client1
 
-```
+    rcc ht shared -e
+    rcc ht init 
+    cd /data/minimal7
+    rcc ht vars
+    rccremote -hostname 0.0.0.0 -debug -trace
 
-```
-rcc ht ls
-Identity                  Controller  Space     Blueprint         Full path
---------                  ----------  -----     --------          ---------
-720c7a8_5a1fac3_35b943a4  rcc.user    minimal6  2409ce1066f4880d  /root/.robocorp/holotree/720c7a8_5a1fac3_35b943a4
-720c7a8_5a1fac3_6b6951cb  rcc.user    minimal5  35332e65a214c09f  /home/myuser/.robocorp/holotree/720c7a8_5a1fac3_6b6951cb
-720c7a8_5a1fac3_b65c2b39  rcc.user    minimal7  a466d176c7dc6696  /opt/robocorp/ht/720c7a8_5a1fac3_b65c2b39
-```
+## Client2
 
-## Serving the catalogs with rccremote, importing the hololibs from rccremote
+    export RCC_REMOTE_ORIGIN=https://nginx:443
 
-- Started rccremote on the server: `rccremote -hostname 0.0.0.0 -debug -trace`
-- On client and clientuser: `export RCC_REMOTE_ORIGIN="http://server:4653"`
+    cd /data/minimal7
+    rcc ht vars
 
-Executed on each host, client and clientuser (without `--space`, rcc would always overwrite the "user" space): 
+Verify that rcc denies to fetch from rccremote ("hostname verification failed").
 
-- `cd minimal5; rcc task run --space minimal5`
-- `cd minimal6; rcc task run --space minimal6`
-- `cd minimal7; rcc task run --space minimal7`
+Now import the custom RCC profile which disables SSL certificate verfication: 
 
-## Observations
+    rcc config import -f rccremote-insecure.yaml 
 
-- **Client**: all 3 environments are created and can be used similarly to the server (rcc is running as root)
-- **Clientuser**: only the `minimal5` environment can be created and used. The other two environments would require a hololib creation in folders where the normal user does not have access to.
+Check whether profile is ready to activate: 
 
+    rcc config switch
 
-## Conclusion
+Activate profile: 
 
+    rcc config switch -p rccremote-insecure
 
-**Rule of thumb**: Creating and importing Hololibs must always be done with the user that the test execution environment will be run as: 
+Verify changed settings `config-active-profile` and `config-ssl-verify`: 
 
-- Linux: root (unless the CMK agent is run as a different user)
-- Windows:
-  - Headless execution: LOCAL SYSTEM (unless the CMK agent is run as a different user)
-  - Headed execution: the user which is assigned to execute the test
+    rcc config diag
 
-Ignoring this recommendation
+Fetching from rccremote should work now: 
 
-- may result in the Holotree folders being spread across the system/different home directories, depending on where they were originally built. (Linux & Windows headless)
-- will cause the environment build to fail on Windows/headed, because rcc will then try to create the Holotree directory outside the user context.
-
-### Risk analysis 
-
-Even if the scheduler (running under root) can use a holotree in a user home - this could pose a similar danger as with shared holotrees: in the home dir, an unprivileged user could place malicious code in the holotree that the scheduler executes with root privileges.
-
-If the `.robocorp` directory of the holotree does not exist, it gets created by rcc. It's then owned by root and only he has write access:
-
-```
-drwxr-x--- 3 root root 4096 Oct  2 08:44 .robocorp
-```
-This could be considered as "safe". BUT, however: 
-A user could create `/home/myuser/.roborp/ht/.../.../.../.../whatever` beforehand. RCC won't then re-create these directories with proper permissions, but use the existing ones. 
-The user would then be able to place malicious code there afterwards.
-
-(There is NO risk, however, for plans which neither use rccremote nor ZIP imports)
-
-### Current state of implementation
-
-The scheduler creates environments (=Holotrees) by executing `rcc task run`. In case of rccremote, the execution triggers the rcc hololib import as well as the environment creation before the actual command execution. 
-
-Even when the tasks in the robot.yaml are not relevant to Robotmk, we do not have control what users write here. The fact alone that an execution *can* happen is enough to count this as a security risk. 
-
-### Requirements
-
-The requirement for a secure operation with imported hololibs is: The scheduler must not create environments where the "Holotree path" of the environment can be written by someone else but root (be it before or after the holotree has been created).
-
-### Possible workaround
-
-A workaround would be to split up the creation of environments into an "import" and "create" phase: 
-
-- Step 1: Before the environment creation phase, the Scheduler has to determine his default Holotree path (`/opt/robocorp/ht`). (This path is where noone else but root can write into).
-  - TBD: use `rcc config diag --json` - which key is the right one? 
-- Step 2 = **I. IMPORT**: import all Hololibs; for each Suite do:
-  - if rccremote: run `rcc ht pull -r robot.yaml`
-  - if ZIP: run `rcc ht import zipfile.zip`
-- Step 3: run ` rcc ht catalogs --json` to get all Holotree paths
-- Step 4: Check whether the Holotree paths of all Hololibs match the default Holotree path (determined in Step 1).
-  - => we agreed that if there is at least one non-matching path, the scheduler should skip ALL RCC suites and produde a proper error message.
-- Step 5 = **II. CREATE**: Now we can assume that the holotrees will be created in a "safe" place where only root has write access to; for each Suite do:
-  - `rcc task run` (alternatively: `rcc ht vars`, does not need a command, but creates the env)
-
-### To be discussed
-
-- Would the workaround guarantee a safe operation? 
-- If not - is there a strategy to communicate this risk to the user so that we can offer the feature with a good feeling?
+    rcc ht vars
 
